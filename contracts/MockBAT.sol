@@ -3,4 +3,8 @@ import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contr
 
 contract MockBAT is ERC20 {
     constructor() ERC20('BAT', 'Bat token', 18) public {};
+
+    function faucet(address to, uint amount) external {
+        _mint(to, amount);
+    }
 }

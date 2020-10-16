@@ -1,7 +1,11 @@
 pragma solidity ^0.6.3;
-import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/IERC20.sol';
+pragma experimental ABIEncoderV2;
 
+import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/IERC20.sol';
+import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/math/SafeMath.sol';
 contract ChainwaveDex{
+
+    using SafeMath for uint;
 
     enum Side {
         BUY, SELL
@@ -51,9 +55,40 @@ contract ChainwaveDex{
         administrator = msg.sender;
     }
 
-    function addToken(
-        bytes32 ticker,
-        address tokenAddress) onlyAdmin() external{
+
+    function getOrders(bytes32 ticker,Side side)
+    external 
+    view 
+    returns (Order[] memory)
+    {
+        return orderBook[ticker][uint(side)];
+    }
+
+    
+
+    function getTokens(bytes32 ticker,Side side)
+    external 
+    view 
+    returns (Token[] memory)
+    {
+        Token[] memory _tokens = new Token[](tokenList.length);
+        
+        for(uint i = 0; i< tokenList.length; i++){
+            _tokens[i] = Token(
+                tokens[tokenList[i]].id,
+                tokens[tokenList[i]].symbol,
+                tokens[tokenList[i]].at
+            );
+        }
+        
+        return _tokens;
+    }
+
+
+
+    function addToken(bytes32 ticker,address tokenAddress) 
+    onlyAdmin() 
+    external{
 
             tokens[ticker] = Token(ticker,tokenAddress);
             tokenList.push(ticker);
@@ -61,12 +96,22 @@ contract ChainwaveDex{
         }
     )
 
+   
 
-    function createLimitOrder(bytes32 ticker, uint amount, uint price, Side side) tokenNotDai(ticker) tokenApproved(ticker) external {
+
+    function createLimitOrder(
+        bytes32 ticker, 
+        uint amount, 
+        uint price, 
+        Side side) 
+        tokenNotDai(ticker) 
+        tokenApproved(ticker) 
+        external {
+
         if(side == Side.SELL){
             require(traderBalances[msg.sender][ticker] >= amount, 'Token balance too low');
         } else{
-            require(traderBalances[msg.sender][DAI] >= amount * price, 'DAI balance too low');
+            require(traderBalances[msg.sender][DAI] >= amount.mul(price), 'DAI balance too low');
         }
 
         Order [] storage orders = orderBook[ticker][uint(side)];
@@ -84,9 +129,9 @@ contract ChainwaveDex{
             )
         )
 
-        uint i = orders.length -1;
+        uint i = orders.length > 0 ? orders.length -1 : 0;
 
-        while(i>0){
+        while( i > 0 ){
             if(Side == Side.BUY && orders[i-1].price > orders[i].price){
                 break;
             }
@@ -97,15 +142,20 @@ contract ChainwaveDex{
            Order memory order - orders[i-1];
            orders [i-1] = orders[i];
            orders[i] = order;
-           i--;
+           i = i.sub(1)
         }
+
+        nextOrderId = nextOrderId.add(1);
     }
 
-    createMarketOrder(
+    function createMarketOrder(
         bytes32 ticker,
         uint amount,
         Side side,
-    ) tokenApproved(ticket) tokenNotDai(ticker) external{
+    ) 
+    tokenApproved(ticket) 
+    tokenNotDai(ticker) 
+    external {
         if(side == Side.SELL) {
             require(traderBalances[msg.sender][ticker] >= amount, 'Token balance too low');
         }
@@ -115,10 +165,10 @@ contract ChainwaveDex{
         uint unfilled = amount
 
         while(i < orders.length && unfilled > 0){
-            uint liquidity = orders[i].amount - orders[i].filled;
+            uint liquidity = orders[i].amount.sub(orders[i].filled) ;
             uint matched = (unfilled > liquidity) ? liquidity : unfilled;
-            unfilled -= matched;
-            orders[i].filled += matched;
+            unfilled = unfilled.sub(matched);
+            orders[i].filled = orders[i].filled.add(matched);
 
             emit NewTrade(
                nextTradeId,
@@ -132,34 +182,35 @@ contract ChainwaveDex{
             );
 
             if(side == side.SELL){
-                traderBalances[msg.sender][ticker] -= matched;
-                traderBalances[msg.sender][DAI] += matched * orders[i].price;
+                traderBalances[msg.sender][ticker] = traderBalances[msg.sender][ticker].sub(matched);
+                traderBalances[msg.sender][DAI] =  traderBalances[msg.sender][DAI].add(matched.mul(orders[i].price));
 
-                traderBalances[orders[i].trader][ticker] += matched;
-                traderBalances[orders[i].trader][DAI] -= matched * orders[i].price;
+                traderBalances[orders[i].trader][ticker] = traderBalances[orders[i].trader][ticker].add(matched);
+                traderBalances[orders[i].trader][DAI] =  traderBalances[orders[i].trader][DAI].sub(matched.mul(orders[i].price));
             } 
 
             if(side == side.BUY){
-                require(traderBalances[msg.sender][DAI] >= matched * orders[i].price, 'Dai balance too low');
-                traderBalances[msg.sender][ticker] += matched;
-                traderBalances[msg.sender][DAI] -= matched * orders[i].price;
+                require(traderBalances[msg.sender][DAI] >= matched.mul(orders[i].price), 'Dai balance too low');
+                traderBalances[msg.sender][ticker] = traderBalances[msg.sender][ticker].add(matched);
+                traderBalances[msg.sender][DAI] = traderBalances[msg.sender][DAI].sub(matched.mul(orders[i].price)) ;
 
-                traderBalances[orders[i].trader][ticker] -= matched;
-                traderBalances[orders[i].trader][DAI] += matched * orders[i].price;
+                traderBalances[orders[i].trader][ticker] = traderBalances[orders[i].trader][ticker].sub(matched);
+                traderBalances[orders[i].trader][DAI] = traderBalances[orders[i].trader][DAI].add(matched.mul(orders[i].price));
             } 
 
-            nextTradeId++;
-            i++;
+            nextTradeId = nextTradeId.add(1);
+            i = i.add(1);
+
         }
         //remove filled orders
 
         uint j = 0;
 
         while(j < orders.length && orders[i].filled == orders[i].amount){
-            for(uint k = j; k< orders.length -1; k++){
+            for(uint k = j; k < orders.length - 1; k++){
                 orders[k] = orders[k+1];
                 orders.pop();
-                j++;
+                j=j.add(1);
             }
         }
     }
@@ -171,14 +222,15 @@ contract ChainwaveDex{
             address(this),
             amount;
         );
-        traderBalances[msg.sender][ticker] +=amount;
+
+        traderBalances[msg.sender][ticker]=  traderBalances[msg.sender][ticker].add(amount);
     }
     
     function withdraw(amount, ticker) tokenApproved(ticker) external {
 
         require(traderBalances[msg.sender] >=amount, "Balance too low");
 
-        traderBalances[msg.sender][ticker] -= amount;
+        traderBalances[msg.sender][ticker] = traderBalances[msg.sender][ticker].sub(amount);
 
         IERC20(tokens[ticker].tokenAddress).transfer(
             msg.sender,
