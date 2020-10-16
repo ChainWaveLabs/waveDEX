@@ -1,8 +1,9 @@
-pragma solidity ^0.6.3;
+pragma solidity 0.6.3;
 pragma experimental ABIEncoderV2;
 
-import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/IERC20.sol';
-import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/math/SafeMath.sol';
+import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import '@openzeppelin/contracts/math/SafeMath.sol';
+
 contract ChainwaveDex{
 
     using SafeMath for uint;
@@ -24,7 +25,7 @@ contract ChainwaveDex{
         uint amount;
         uint filled;
         uint price;
-        uint date
+        uint date;
     }
 
     mapping(bytes32 => Token) public tokens;
@@ -43,13 +44,12 @@ contract ChainwaveDex{
         uint amount,
         uint price,
         uint date
-
-    )
+    );
 
     uint public nextOrderId;
     uint public nextTradeId;
 
-    bytes constant DAI = bytes32('DAI');
+    bytes32 constant DAI = bytes32('DAI');
     
     constructor() public {
         administrator = msg.sender;
@@ -66,7 +66,7 @@ contract ChainwaveDex{
 
     
 
-    function getTokens(bytes32 ticker,Side side)
+    function getTokens()
     external 
     view 
     returns (Token[] memory)
@@ -75,9 +75,8 @@ contract ChainwaveDex{
         
         for(uint i = 0; i< tokenList.length; i++){
             _tokens[i] = Token(
-                tokens[tokenList[i]].id,
-                tokens[tokenList[i]].symbol,
-                tokens[tokenList[i]].at
+                tokens[tokenList[i]].ticker,
+                tokens[tokenList[i]].tokenAddress
             );
         }
         
@@ -94,10 +93,6 @@ contract ChainwaveDex{
             tokenList.push(ticker);
 
         }
-    )
-
-   
-
 
     function createLimitOrder(
         bytes32 ticker, 
@@ -127,22 +122,22 @@ contract ChainwaveDex{
                 price,
                 now
             )
-        )
+        );
 
         uint i = orders.length > 0 ? orders.length -1 : 0;
 
         while( i > 0 ){
-            if(Side == Side.BUY && orders[i-1].price > orders[i].price){
+            if(side == Side.BUY && orders[i-1].price > orders[i].price){
                 break;
             }
 
-            if(Side == Side.SELL && orders[i-1].price < orders[i].price){
+            if(side == Side.SELL && orders[i-1].price < orders[i].price){
                 break;     
             }
-           Order memory order - orders[i-1];
+           Order memory order = orders[i-1];
            orders [i-1] = orders[i];
            orders[i] = order;
-           i = i.sub(1)
+           i = i.sub(1);
         }
 
         nextOrderId = nextOrderId.add(1);
@@ -151,18 +146,18 @@ contract ChainwaveDex{
     function createMarketOrder(
         bytes32 ticker,
         uint amount,
-        Side side,
+        Side side
     ) 
-    tokenApproved(ticket) 
+    tokenApproved(ticker) 
     tokenNotDai(ticker) 
     external {
         if(side == Side.SELL) {
             require(traderBalances[msg.sender][ticker] >= amount, 'Token balance too low');
         }
 
-        Order[] storge orders = orderBook[ticker][uint(side == Side.BUY ? side.SELL : side.BUY)];
+        Order[] storage orders = orderBook[ticker][uint(side == Side.BUY ? Side.SELL : Side.BUY)];
         uint i;
-        uint unfilled = amount
+        uint unfilled = amount;
 
         while(i < orders.length && unfilled > 0){
             uint liquidity = orders[i].amount.sub(orders[i].filled) ;
@@ -181,7 +176,7 @@ contract ChainwaveDex{
                now
             );
 
-            if(side == side.SELL){
+            if(side == Side.SELL){
                 traderBalances[msg.sender][ticker] = traderBalances[msg.sender][ticker].sub(matched);
                 traderBalances[msg.sender][DAI] =  traderBalances[msg.sender][DAI].add(matched.mul(orders[i].price));
 
@@ -189,7 +184,7 @@ contract ChainwaveDex{
                 traderBalances[orders[i].trader][DAI] =  traderBalances[orders[i].trader][DAI].sub(matched.mul(orders[i].price));
             } 
 
-            if(side == side.BUY){
+            if(side == Side.BUY){
                 require(traderBalances[msg.sender][DAI] >= matched.mul(orders[i].price), 'Dai balance too low');
                 traderBalances[msg.sender][ticker] = traderBalances[msg.sender][ticker].add(matched);
                 traderBalances[msg.sender][DAI] = traderBalances[msg.sender][DAI].sub(matched.mul(orders[i].price)) ;
@@ -216,43 +211,29 @@ contract ChainwaveDex{
     }
 
 // WALLET FUNCTIONS
-    function deposit(amount, ticker) tokenApproved(ticker)  external {
-        IERC20(tokens[ticker].tokenAddress).transferFrom(
-            msg.sender,
-            address(this),
-            amount;
-        );
-
-        traderBalances[msg.sender][ticker]=  traderBalances[msg.sender][ticker].add(amount);
+    function deposit(uint amount, bytes32 ticker) tokenApproved(ticker) external {
+        IERC20(tokens[ticker].tokenAddress).transferFrom(msg.sender,address(this),amount);
+        traderBalances[msg.sender][ticker] = traderBalances[msg.sender][ticker].add(amount);
     }
     
-    function withdraw(amount, ticker) tokenApproved(ticker) external {
-
-        require(traderBalances[msg.sender] >=amount, "Balance too low");
-
+    function withdraw(uint amount, bytes32 ticker) tokenApproved(ticker) external {
+        require(traderBalances[msg.sender][ticker] >= amount, "Balance too low");
         traderBalances[msg.sender][ticker] = traderBalances[msg.sender][ticker].sub(amount);
-
-        IERC20(tokens[ticker].tokenAddress).transfer(
-            msg.sender,
-             amount;
-        );
-
+        IERC20(tokens[ticker].tokenAddress).transfer(msg.sender,amount);
     }
 
     //END WALLET FUNCTIONS
-    
-
     modifier onlyAdmin(){
         require(msg.sender == administrator, "Only admin allowed");
         _;
     }
 
-    modifier tokenApproved(ticker){
+    modifier tokenApproved(bytes32 ticker){
         require(tokens[ticker].tokenAddress != address(0), 'This token does not exist');
         _;
     }
 
-    modifier tokenNotDai(ticker){
+    modifier tokenNotDai(bytes32 ticker){
       require(ticker != DAI, 'Cannot trade DAI');
         _;
     }
