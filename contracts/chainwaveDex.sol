@@ -12,10 +12,9 @@ contract ChainwaveDex{
         address tokenAddress;
     }
 
-  
-
     struct Order{
         uint id;
+        address trader;
         Side side;
         bytes32 ticker;
         uint amount;
@@ -28,12 +27,24 @@ contract ChainwaveDex{
     bytes32[] public tokenList;
     address public administrator;
 
-    mapping(address => mapping(bytes32 => uint)) traderBalances;
-
-
+    mapping(address => mapping(bytes32 => uint)) public traderBalances;
     mapping(bytes32 => mapping(uint => Order[])) public orderBook;
 
+    event NewTrade(
+        uint tradeId,
+        uint orderId,
+        bytes32 indexed ticker,
+        address indexed trader1,
+        address indexed trader2,
+        uint amount,
+        uint price,
+        uint date
+
+    )
+
     uint public nextOrderId;
+    uint public nextTradeId;
+
     bytes constant DAI = bytes32('DAI');
     
     constructor() public {
@@ -51,21 +62,19 @@ contract ChainwaveDex{
     )
 
 
-    function createLimitOrder(bytes32 ticker, uint amount, uint price, Side side) external tokenApproved(ticker){
-        require(ticker != DAI, 'Cannot trade DAI');
+    function createLimitOrder(bytes32 ticker, uint amount, uint price, Side side) tokenNotDai(ticker) tokenApproved(ticker) external {
         if(side == Side.SELL){
             require(traderBalances[msg.sender][ticker] >= amount, 'Token balance too low');
         } else{
-            require(traderBalances[msg.sender][DAI] .= amount * price, 'DAI balance too low');
+            require(traderBalances[msg.sender][DAI] >= amount * price, 'DAI balance too low');
         }
 
         Order [] storage orders = orderBook[ticker][uint(side)];
 
-        //ensure orders are in order of price
-
         orders.push(
             Order(
                 nextOrderId,
+                msg.sender,
                 side,
                 ticker,
                 amount,
@@ -77,8 +86,6 @@ contract ChainwaveDex{
 
         uint i = orders.length -1;
 
-
-        // Sorting orderbook by price
         while(i>0){
             if(Side == Side.BUY && orders[i-1].price > orders[i].price){
                 break;
@@ -91,6 +98,69 @@ contract ChainwaveDex{
            orders [i-1] = orders[i];
            orders[i] = order;
            i--;
+        }
+    }
+
+    createMarketOrder(
+        bytes32 ticker,
+        uint amount,
+        Side side,
+    ) tokenApproved(ticket) tokenNotDai(ticker) external{
+        if(side == Side.SELL) {
+            require(traderBalances[msg.sender][ticker] >= amount, 'Token balance too low');
+        }
+
+        Order[] storge orders = orderBook[ticker][uint(side == Side.BUY ? side.SELL : side.BUY)];
+        uint i;
+        uint unfilled = amount
+
+        while(i < orders.length && unfilled > 0){
+            uint liquidity = orders[i].amount - orders[i].filled;
+            uint matched = (unfilled > liquidity) ? liquidity : unfilled;
+            unfilled -= matched;
+            orders[i].filled += matched;
+
+            emit NewTrade(
+               nextTradeId,
+               orders[i].id,
+               ticker,
+               orders[i].trader,
+               msg.sender,
+               matched,
+               orders[i].price,
+               now
+            );
+
+            if(side == side.SELL){
+                traderBalances[msg.sender][ticker] -= matched;
+                traderBalances[msg.sender][DAI] += matched * orders[i].price;
+
+                traderBalances[orders[i].trader][ticker] += matched;
+                traderBalances[orders[i].trader][DAI] -= matched * orders[i].price;
+            } 
+
+            if(side == side.BUY){
+                require(traderBalances[msg.sender][DAI] >= matched * orders[i].price, 'Dai balance too low');
+                traderBalances[msg.sender][ticker] += matched;
+                traderBalances[msg.sender][DAI] -= matched * orders[i].price;
+
+                traderBalances[orders[i].trader][ticker] -= matched;
+                traderBalances[orders[i].trader][DAI] += matched * orders[i].price;
+            } 
+
+            nextTradeId++;
+            i++;
+        }
+        //remove filled orders
+
+        uint j = 0;
+
+        while(j < orders.length && orders[i].filled == orders[i].amount){
+            for(uint k = j; k< orders.length -1; k++){
+                orders[k] = orders[k+1];
+                orders.pop();
+                j++;
+            }
         }
     }
 
@@ -130,4 +200,8 @@ contract ChainwaveDex{
         _;
     }
 
+    modifier tokenNotDai(ticker){
+      require(ticker != DAI, 'Cannot trade DAI');
+        _;
+    }
 }
