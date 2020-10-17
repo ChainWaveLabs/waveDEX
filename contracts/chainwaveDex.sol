@@ -64,8 +64,6 @@ contract ChainwaveDex{
         return orderBook[ticker][uint(side)];
     }
 
-    
-
     function getTokens()
     external 
     view 
@@ -82,8 +80,6 @@ contract ChainwaveDex{
         
         return _tokens;
     }
-
-
 
     function addToken(bytes32 ticker,address tokenAddress) 
     onlyAdmin() 
