@@ -28,14 +28,17 @@ contract ChainwaveDex{
         uint date;
     }
 
-    mapping(bytes32 => Token) public tokens;
+    uint public nextOrderId;
+    uint public nextTradeId;
+    bytes32 constant DAI = bytes32('DAI');
     bytes32[] public tokenList;
     address public administrator;
 
+    mapping(bytes32 => Token) public tokens;
     mapping(address => mapping(bytes32 => uint)) public traderBalances;
     mapping(bytes32 => mapping(uint => Order[])) public orderBook;
 
-    event NewTrade(
+     event NewTrade(
         uint tradeId,
         uint orderId,
         bytes32 indexed ticker,
@@ -45,16 +48,10 @@ contract ChainwaveDex{
         uint price,
         uint date
     );
-
-    uint public nextOrderId;
-    uint public nextTradeId;
-
-    bytes32 constant DAI = bytes32('DAI');
     
     constructor() public {
         administrator = msg.sender;
     }
-
 
     function getOrders(bytes32 ticker,Side side)
     external 
@@ -207,8 +204,19 @@ contract ChainwaveDex{
     }
 
 // WALLET FUNCTIONS
-    function deposit(uint amount, bytes32 ticker) tokenApproved(ticker) external {
-        IERC20(tokens[ticker].tokenAddress).transferFrom(msg.sender,address(this),amount);
+    // function deposit(uint amount, bytes32 ticker) tokenApproved(ticker) external {
+    //     IERC20(tokens[ticker].tokenAddress).transferFrom(msg.sender,address(this),amount);
+    //     traderBalances[msg.sender][ticker] = traderBalances[msg.sender][ticker].add(amount);
+    // }
+
+    function deposit(uint amount,bytes32 ticker)
+        tokenApproved(ticker)
+        external {
+        IERC20(tokens[ticker].tokenAddress).transferFrom(
+            msg.sender,
+            address(this),
+            amount
+        );
         traderBalances[msg.sender][ticker] = traderBalances[msg.sender][ticker].add(amount);
     }
     
