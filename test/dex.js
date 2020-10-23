@@ -1,6 +1,5 @@
 const { assert } = require("console");
 const { expectRevert } = require('@openzeppelin/test-helpers');
-const { expect } = require("chai");
 const { web3 } = require("@openzeppelin/test-helpers/src/setup");
 const Dai = artifacts.require('mocks/MockDAI.sol');
 const Bat = artifacts.require('mocks/MockBAT.sol');
@@ -63,10 +62,9 @@ contract('ChainwaveDex', (accounts) => {
 
     it('Should deposit tokens', async () => {
 
-        const amount = web3.utils.toWei('100');
+        const amount = web3.utils.toWei('10000');
         await dex.deposit(amount, DAI, { from: trader1 })
         const balance = await dex.traderBalances(trader1, DAI);
-        console.log("bal aft", balance.toString());
         assert(balance.toString() === amount);
     })
 
@@ -124,6 +122,8 @@ contract('ChainwaveDex', (accounts) => {
     //   });
 
     it('should create a limit order', async () => {
+
+        const amount = web3.utils.toWei('10000');
         await dex.deposit(amount, DAI, { from: trader1 });
         await dex.createLimitOrder(
             CWV,
@@ -133,14 +133,48 @@ contract('ChainwaveDex', (accounts) => {
             { from: trader1 }
         );
 
-        const buyOrders = await dex.getOrders(CWV, SIDE.BUY);
-        const sellOrders = await dex.getOrders(CWV, SIDE.SELL);
+        let buyOrders = await dex.getOrders(CWV, SIDE.BUY);
+        let sellOrders = await dex.getOrders(CWV, SIDE.SELL);
 
         assert(buyOrders.length === 1);
         assert(buyOrders[0].trader === trader1);
         assert(buyOrders[0].ticker === web3.utils.padRight(CWV, 64));
         assert(buyOrders[0].price === "10");
         assert(buyOrders[0].amount === web3.utils.toWei('10'));
+        assert(sellOrders.length === 0);
+
+        await dex.deposit(web3.utils.toWei('200'), DAI, { from: trader2 });
+        await dex.createLimitOrder(
+            CWV,
+            web3.utils.toWei('10'),
+            10,
+            SIDE.BUY,
+            { from: trader2 }
+        );
+
+        buyOrders = await dex.getOrders(CWV, SIDE.BUY);
+        sellOrders = await dex.getOrders(CWV, SIDE.SELL);
+
+        assert(buyOrders.length === 2);
+        assert(buyOrders[0].trader === trader2);
+        assert(buyOrders[1].trader === trader1);
+        assert(sellOrders.length === 0);
+
+        await dex.deposit(web3.utils.toWei('10'), DAI, { from: trader2 });
+        await dex.createLimitOrder(
+            CWV,
+            web3.utils.toWei('9'),
+            10,
+            SIDE.BUY,
+            { from: trader2 }
+        );
+
+        buyOrders = await dex.getOrders(CWV, SIDE.BUY);
+        sellOrders = await dex.getOrders(CWV, SIDE.SELL);
+        assert(buyOrders.length === 3);
+        assert(buyOrders[0].trader === trader2);
+        assert(buyOrders[1].trader === trader1);
+        assert(buyOrders[2].trader === trader2);
         assert(sellOrders.length === 0);
     });
 });
