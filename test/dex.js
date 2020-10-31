@@ -177,4 +177,64 @@ contract('ChainwaveDex', (accounts) => {
         assert(buyOrders[2].trader === trader2);
         assert(sellOrders.length === 0);
     });
+
+    it('should create a limit order if token does not exists', async () => {
+        await expectRevert(
+            dex.createLimitOrder(
+                web3.utils.fromAscii('TOKEN-NOT-EXIST'),
+                web3.utils.toWei('1000'),
+                10,
+                SIDE.BUY,
+                {from: trader1}
+            ), 'This token does not exist'
+        )
+    })
+
+    it('should create a limit order if token is DAI', async () => {
+        await expectRevert(
+            dex.createLimitOrder(
+                web3.utils.fromAscii(DAI),
+                web3.utils.toWei('1000'),
+                10,
+                SIDE.BUY,
+                {from: trader1}
+            ), 'Cannot trade DAI'
+        )
+    })
+
+    it('should not create a limit order if token balance is too low', async () => {
+       await dex.deposit(
+           web3.utils.toWei('99'),
+           CWV,
+           {from: trader1}
+       );
+
+       await expectRevert(
+           dex.createLimitOrder(
+               CWV,
+               web3.utils.toWei('100'),
+               10,
+               SIDE.SELL,
+               {from:trader1},
+           ), "Token balance too low"
+       )
+    })
+
+    it('should not create a limit order if DAI balance is too low', async () => {
+        await dex.deposit(
+            web3.utils.toWei('99'),
+            CWV,
+            {from: trader1}
+        );
+ 
+        await expectRevert(
+            dex.createLimitOrder(
+                CWV,
+                web3.utils.toWei('10'),
+                10,
+                SIDE.BUY,
+                {from:trader1},
+            ), "DAI balance too low"
+        )
+     })
 });
