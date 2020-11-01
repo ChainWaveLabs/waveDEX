@@ -18,6 +18,8 @@
  *
  */
 
+ const path = require('path');
+
 // const HDWalletProvider = require('@truffle/hdwallet-provider');
 // const infuraKey = "fj4jll3k.....";
 //
@@ -34,6 +36,8 @@ module.exports = {
    *
    * $ truffle test --network <network-name>
    */
+
+   contracts_build_directory : path.join(__dirname, "client/src/contracts"),
 
   networks: {
     // Useful for testing. The `development` name is special - truffle uses it by default
