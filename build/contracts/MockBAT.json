@@ -1031,12 +1031,12 @@
         }
       },
       "links": {},
-      "address": "0x2742D4B4b0f5c28eAF11341232b76E8aCE3a3df0",
-      "transactionHash": "0x4e1c8c15f2179f8a07f3df009f3b00067b54ed1cfada6e9a9db784d9cd0a3d5b"
+      "address": "0xEa0237Cb2b2f336a46b49122CC12D70e94BE4326",
+      "transactionHash": "0xd24d1e7da1fa91ae291955422c6f96cb20519070b8e9934cbcf4dacf3e858443"
     }
   },
   "schemaVersion": "3.2.5",
-  "updatedAt": "2020-10-31T18:13:38.685Z",
+  "updatedAt": "2020-11-01T08:26:50.695Z",
   "networkType": "ethereum",
   "devdoc": {
     "methods": {
