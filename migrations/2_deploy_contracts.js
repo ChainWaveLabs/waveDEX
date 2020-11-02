@@ -2,7 +2,7 @@ const Dai = artifacts.require('mocks/MockDAI.sol');
 const Bat = artifacts.require('mocks/MockBAT.sol');
 const Yfi = artifacts.require('mocks/MockYFI.sol');
 const Cwv = artifacts.require('mocks/ChainwaveToken.sol');
-const Dex = artifacts.require("Dex.sol");
+const Dex = artifacts.require("ChainwaveDex.sol");
 
 const [DAI, BAT, YFI, CWV] = ['DAI', 'BAT', 'YFI', 'CWV']
   .map(ticker => web3.utils.fromAscii(ticker));

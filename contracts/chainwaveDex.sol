@@ -35,16 +35,16 @@ contract ChainwaveDex {
     mapping(address => mapping(bytes32 => uint256)) public traderBalances;
     mapping(bytes32 => mapping(uint256 => Order[])) public orderBook;
 
-    event NewTrade(
-        uint256 tradeId,
-        uint256 orderId,
-        bytes32 indexed ticker,
-        address indexed trader1,
-        address indexed trader2,
-        uint256 amount,
-        uint256 price,
-        uint256 date
-    );
+    // event NewTrade(
+    //     uint256 tradeId,
+    //     uint256 orderId,
+    //     bytes32 indexed ticker,
+    //     address indexed trader1,
+    //     address indexed trader2,
+    //     uint256 amount,
+    //     uint256 price,
+    //     uint256 date
+    // );
 
     constructor() public {
         administrator = msg.sender;
@@ -144,16 +144,16 @@ contract ChainwaveDex {
             unfilled = unfilled.sub(matched);
             orders[i].filled = orders[i].filled.add(matched);
 
-            emit NewTrade(
-                nextTradeId,
-                orders[i].id,
-                ticker,
-                orders[i].trader,
-                msg.sender,
-                matched,
-                orders[i].price,
-                now
-            );
+            // emit NewTrade(
+            //     nextTradeId,
+            //     orders[i].id,
+            //     ticker,
+            //     orders[i].trader,
+            //     msg.sender,
+            //     matched,
+            //     orders[i].price,
+            //     now
+            // );
 
             if (side == Side.SELL) {
                 traderBalances[msg.sender][ticker] = traderBalances[msg
@@ -199,7 +199,7 @@ contract ChainwaveDex {
 
         uint256 j = 0;
 
-        while (j < orders.length && orders[i].filled == orders[i].amount) {
+        while (j < orders.length && orders[j].filled == orders[j].amount) {
             for (uint256 k = j; k < orders.length - 1; k++) {
                 orders[k] = orders[k + 1];
                 orders.pop();
